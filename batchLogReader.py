@@ -234,8 +234,6 @@ def LogReader(filename,tier,movesets,ratings):
 			rd=ratings[player[0]]['RD']
 			rpr=Glicko.newRatingPeriod(ratings[player[0]])['R']
 			rprd=Glicko.newRatingPeriod(ratings[player[0]])['RD']
-			# rpr=Glicko.provisional(ratings[player[0]])['R']
-			# rprd=Glicko.provisional(ratings[player[0]])['RD']
 			rating[player[1]]={'r':r,'rd':rd,'rpr':rpr,'rprd':rprd}
 
 	#get pokemon info
@@ -792,7 +790,7 @@ def main(argv):
 
 
 	ratings_file = "ratings.json"
-	ratings = None
+	ratings = {}
 	if len(argv) > 3:
 		try:
 			ratings = json.loads(open(argv[3]).readline())
@@ -856,13 +854,10 @@ def main(argv):
 			msfile.write(json.dumps(movesets[species]))
 			msfile.close()
 
-	# if ratings != None:
-		# for player in list(ratings.keys()):
-		# 	Glicko.newRatingPeriod(ratings[player])
 	ratingfile=open(ratings_file,'w+')
 	ratingfile.write(json.dumps(ratings))
 	ratingfile.close()
-	Glicko.write(ratings, "ratings.txt")
+	Glicko.write(ratings, "Stats/ratings.txt")
 
 if __name__ == "__main__":
     main(sys.argv)

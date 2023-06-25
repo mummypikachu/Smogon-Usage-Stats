@@ -15,7 +15,7 @@ import math
 from common import keyify,weighting,readTable,aliases,victoryChance
 from TA import nmod,statFormula,baseStats
 
-def movesetCounter(filename, cutoff, teamtype, usage):
+def movesetCounter(filename, cutoff, teamtype, usage, movesetsfile):
 	file = gzip.open(filename,'rb')
 	raw = file.read()
 	file.close()
@@ -183,46 +183,37 @@ def movesetCounter(filename, cutoff, teamtype, usage):
 	separator = ' +'
 	for i in range(tablewidth):
 		separator = separator + '-'
-	separator = separator + '+ '
-	print(separator)
+	separator = separator + '+ \n'
+	movesetsfile.write(separator)
 
 	line = ' | '+species
 	for i in range(len(species),tablewidth-1):
 		line = line + ' '
-	line = line + '| '
-	print(line)
+	line = line + '| \n'
+	movesetsfile.write(line)
 
-	print(separator)
+	movesetsfile.write(separator)
 
 	line = ' | Raw count: %d'%(rawCount)
 	while len(line) < tablewidth+2:
 		line = line + ' '
-	line = line + '| '
-	print(line)
-	line = ' | Avg. weight: '
-	if len(weights)>0:
-		line = line+str(sum(weights)/len(weights))
-	else:
-		line = line+'---'
-	while len(line) < tablewidth+2:
-		line = line + ' '
-	line = line + '| '
-	print(line)
+	line = line + '| \n'
+	movesetsfile.write(line)
 	line = ' | Viability Ceiling: %d'%(maxGXE[1])
 	while len(line) < tablewidth+2:
 		line = line + ' '
-	line = line + '| '
-	print(line)
+	line = line + '| \n'
+	movesetsfile.write(line)
 
-	print(separator)
+	movesetsfile.write(separator)
 
 	for x in ['Abilities','Items','Spreads','Moves','Teammates','Checks and Counters']:
 		table = []
 		line = ' | '+x
 		while len(line) < tablewidth+2:
 			line = line + ' '
-		line = line + '| '
-		print(line)
+		line = line + '| \n'
+		movesetsfile.write(line)
 
 		for i in stuff[x]:
 			if (x in ['Spreads', 'Teammates','Checks and Counters']):
@@ -265,7 +256,7 @@ def movesetCounter(filename, cutoff, teamtype, usage):
 			while len(line) < tablewidth+2:
 				line = line + ' '
 			line = line + '| '
-			print(line.encode('utf8'))
+			movesetsfile.write(line + '\n')
 			if (total > .95 and x != 'Abilities') or (x == 'Abilities' and i>5) or (x == 'Spreads' and i>5) or (x == 'Teammates' and i>10) or (x == 'Checks and Counters' and i>10):
 				break
 			if x == 'Moves':
@@ -274,7 +265,7 @@ def movesetCounter(filename, cutoff, teamtype, usage):
 				total = total + float(table[i][1])/count/5.0
 			elif x != 'Checks and Counters':
 				total = total + float(table[i][1])/count
-		print(separator)
+		movesetsfile.write(separator)
 	return stuff
 
 file = open('keylookup.json', 'rb')
@@ -283,9 +274,10 @@ file.close()
 keyLookup['nothing']='Nothing'
 keyLookup['']='Nothing'
 
-cutoff = 1500
+cutoff = 0
 cutoffdeviation = 0
 teamtype = None
+tier = str(sys.argv[1])
 
 if (len(sys.argv) > 2):
 	cutoff = float(sys.argv[2])
@@ -297,42 +289,50 @@ if teamtype:
 	specs += teamtype+'-'
 specs += '{:.0f}'.format(cutoff)
 
-file = open('Raw/moveset/'+str(sys.argv[1])+'/teammate'+specs+'.pickle', 'rb')
+filename="Stats/movesets/"+tier+specs+".txt"
+d = os.path.dirname(filename)
+if not os.path.exists(d):
+	os.makedirs(d)
+movesetsfile=open(filename,'w')
+
+file = open('Raw/moveset/'+tier+'/teammate'+specs+'.pickle', 'rb')
 teammateMatrix = pickle.load(file)
 file.close()
 
-file = open('Raw/moveset/'+str(sys.argv[1])+'/encounterMatrix'+specs+'.pickle', 'rb')
+file = open('Raw/moveset/'+tier+'/encounterMatrix'+specs+'.pickle', 'rb')
 encounterMatrix = pickle.load(file)
 file.close()
 
-filename = 'Stats/'+str(sys.argv[1])+specs+'.txt'
+filename = 'Stats/'+tier+specs+'.txt'
 file = open(filename)
 table=file.readlines()
 file.close()
 
-usage,nBattles = readTable('Stats/'+str(sys.argv[1])+specs+'.txt')
+usage,nBattles = readTable('Stats/'+tier+specs+'.txt')
 
 pokes = []
 for poke in list(usage.keys()):
 	pokes.append([poke,usage[poke]])
-if sys.argv[1] in ['randombattle','challengecup','challengecup1v1','seasonal']:
+if tier in ['randombattle','challengecup','challengecup1v1','seasonal']:
 	pokes=sorted(pokes)
 else:
 	pokes=sorted(pokes, key=lambda pokes:-pokes[1])
 
-chaos = {'info': {'metagame': str(sys.argv[1]), 'cutoff': cutoff, 'cutoff deviation': cutoffdeviation, 'team type': teamtype, 'number of battles': nBattles},'data':{}}
+chaos = {'info': {'metagame': tier, 'cutoff': cutoff, 'cutoff deviation': cutoffdeviation, 'team type': teamtype, 'number of battles': nBattles},'data':{}}
 for poke in pokes:
 	if poke[1] < 0.0001: #1/100th of a percent
 		break
-	stuff = movesetCounter('Raw/moveset/'+str(sys.argv[1])+'/'+keyify(poke[0]),cutoff,teamtype,usage)
+	stuff = movesetCounter('Raw/moveset/'+tier+'/'+keyify(poke[0]),cutoff,teamtype,usage,movesetsfile)
 	stuff['usage']=poke[1]
 	chaos['data'][poke[0]]=stuff
 
 
-filename="Stats/chaos/"+str(sys.argv[1])+specs+".json"
+filename="Stats/chaos/"+tier+specs+".json"
 d = os.path.dirname(filename)
 if not os.path.exists(d):
 	os.makedirs(d)
 file=open(filename,'w')
 file.write(json.dumps(chaos))
 file.close()	
+
+movesetsfile.close()

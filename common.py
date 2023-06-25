@@ -42,7 +42,7 @@ def readTable(filename):
 
 	nBattles = int(table[0][16:])
 
-	for i in range(5,len(table)):
+	for i in range(4,len(table)):
 		line = table[i].split('|')
 		if len(line)<3:
 			break

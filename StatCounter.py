@@ -270,10 +270,6 @@ else:
 	pokes=sorted(pokes, key=lambda pokes:-pokes[3])
 p=[]
 usagefile.write(" Total battles: "+str(battleCount)+"\n")
-try:
-	usagefile.write(" Avg. weight/team: "+str(round(total['weighted']/battleCount/12,3))+"\n")
-except ZeroDivisionError:
-	usagefile.write(" Avg. weight/team: 0\n")
 usagefile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
 usagefile.write(" | Rank | Pokemon            | Usage %   | Raw    | Win Rate | \n")
 usagefile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
