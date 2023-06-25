@@ -1,7 +1,7 @@
 import string
 import sys
 import json
-import cPickle as pickle
+import pickle as pickle
 from common import keyify,readTable,getBattleFormatsData
 
 def getUsage(filename,col,weight,usage):
@@ -14,25 +14,25 @@ def getUsage(filename,col,weight,usage):
 
 def makeTable(table,name,keyLookup):
 
-	print "[HIDE="+name+"][CODE]"
-	print "Combined usage for "+name
-	print " + ---- + ------------------ + ------- + "
-	print " | Rank | Pokemon            | Percent | "
-	print " + ---- + ------------------ + ------- + "
-	print ' | %-4d | %-18s | %6.3f%% |' % (1,keyLookup[table[0][0]],table[0][1]*100)
+	print("[HIDE="+name+"][CODE]")
+	print("Combined usage for "+name)
+	print(" + ---- + ------------------ + ------- + ")
+	print(" | Rank | Pokemon            | Percent | ")
+	print(" + ---- + ------------------ + ------- + ")
+	print(' | %-4d | %-18s | %6.3f%% |' % (1,keyLookup[table[0][0]],table[0][1]*100))
 	for i in range(1,len(table)):
 		if table[i][1] < 0.001:
 			break
-		print ' | %-4d | %-18s | %6.3f%% |' % (i+1,keyLookup[table[i][0]],100.0*table[i][1])
-	print " + ---- + ------------------ + ------- + "
-	print "[/CODE][/HIDE]"
+		print(' | %-4d | %-18s | %6.3f%% |' % (i+1,keyLookup[table[i][0]],100.0*table[i][1]))
+	print(" + ---- + ------------------ + ------- + ")
+	print("[/CODE][/HIDE]")
 
 tiers = ['Uber','OU','BL','UU','BL2','RU','BL3','NU','BL4','PU']
 usageTiers = ['ou', 'uu', 'ru', 'nu', 'pu']
 
 def main(months):
-	file = open('keylookup.pickle')
-	keyLookup = pickle.load(file)
+	file = open('keylookup.json', 'rb')
+	keyLookup = json.load(file)
 	file.close()
 
 	rise =  [0.06696700846,0.04515839608,0.03406367107][len(months)-1]
@@ -52,7 +52,7 @@ def main(months):
 		#		continue
 		#if poke == 'rayquazamega':
 		#	continue
-		if 'tier' not in formatsData[poke].keys():
+		if 'tier' not in list(formatsData[poke].keys()):
 			continue
 		old = formatsData[poke]['tier']
 		if old[0] == '(':
@@ -68,7 +68,7 @@ def main(months):
 	usage = {} #track usage across all relevant tiers [OU,UU,RU,NU]
 
 	remaining=24.0
-	for i in xrange(len(months)):
+	for i in range(len(months)):
 		weight = remaining
 		if i + 1 < len(months):
 			if i == 0:
@@ -77,7 +77,7 @@ def main(months):
 				weight = 3.0
 		remaining -= weight
 
-		for j in xrange(len(usageTiers)):		
+		for j in range(len(usageTiers)):		
 			n = {}
 			u = {}
 
@@ -133,109 +133,109 @@ def main(months):
 
 	newTiers={}
 	#start with Ubers
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if curTiers[poke] == 'Uber':
 			newTiers[poke] = 'Uber'
 
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			newTiers[poke] = curTiers[poke]
 
 	#next do the OU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][0] > rise and poke not in newTiers.keys():
+		if usage[poke][0] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'OU'
 
 	#next do the UU drops
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if curTiers[poke] == 'OU' and poke not in newTiers.keys():
+		if curTiers[poke] == 'OU' and poke not in list(newTiers.keys()):
 			if usage[poke][0] < drop:
 				newTiers[poke] = 'UU'
 			else:
 				newTiers[poke] = 'OU'
 
 	#next do BL
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if curTiers[poke] == 'BL' and poke not in newTiers.keys():
+		if curTiers[poke] == 'BL' and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'BL'
 
 	
 	#next do the UU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][1] > rise and poke not in newTiers.keys():
+		if usage[poke][1] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'UU'
 
 	#next do the RU drops
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if curTiers[poke] == 'UU' and poke not in newTiers.keys():
+		if curTiers[poke] == 'UU' and poke not in list(newTiers.keys()):
 			if usage[poke][1] < drop:
 				newTiers[poke] = 'RU'
 			else:
 				newTiers[poke] = 'UU'
 
 	#next do BL2
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if curTiers[poke] == 'BL2' and poke not in newTiers.keys():
+		if curTiers[poke] == 'BL2' and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'BL2'
 	
 	#next do the RU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][2] > rise and poke not in newTiers.keys():
+		if usage[poke][2] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'RU'
 
 	#next do the NU drops
-	for poke in curTiers.keys():
-		if curTiers[poke] == 'RU' and poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if curTiers[poke] == 'RU' and poke not in list(newTiers.keys()):
 			if usage[poke][2] < drop:
 				newTiers[poke] = 'NU'
 			else:
 				newTiers[poke] = 'RU'
 
 	#next do BL3
-	for poke in curTiers.keys():
-		if curTiers[poke] == 'BL3' and poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if curTiers[poke] == 'BL3' and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'BL3'
 	
 	#next do the NU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][3] > rise and poke not in newTiers.keys():
+		if usage[poke][3] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'NU'
 
 	#next do the PU drops
-	for poke in curTiers.keys():
-		if curTiers[poke] == 'NU' and poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if curTiers[poke] == 'NU' and poke not in list(newTiers.keys()):
 			if usage[poke][3] < drop:
 				newTiers[poke] = 'PU'
 			else:
 				newTiers[poke] = 'NU'
 
 	#next do BL4
-	for poke in curTiers.keys():
-		if curTiers[poke] == 'BL4' and poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if curTiers[poke] == 'BL4' and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'BL4'
 	
 	#the rest go in the lowest tier
-	for poke in curTiers.keys():
-		if poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if poke not in list(newTiers.keys()):
 			newTiers[poke] = tiers[-1]
 
-	print ""
+	print("")
 	for poke in curTiers:
 		if curTiers[poke] != newTiers[poke]:
 			species = keyLookup[poke]
@@ -244,7 +244,7 @@ def main(months):
 				if tiers.index(newTiers[base]) < tiers.index(newTiers[poke]): #if the base is in a higher tier
 					newTiers[poke] = newTiers[base]
 					continue
-			print species+" moved from "+curTiers[poke]+" to "+newTiers[poke]
+			print(species+" moved from "+curTiers[poke]+" to "+newTiers[poke])
 
 if __name__ == "__main__":
     main(sys.argv[1:])

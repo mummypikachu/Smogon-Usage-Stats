@@ -1,14 +1,14 @@
 import string
 import sys
 import json
-import cPickle as pickle
-from common import keyify,readTable,getFormats
-from TierUpdate import makeTable
+import pickle as pickle
+from .common import keyify,readTable,getFormats
+from .TierUpdate import makeTable
 
 tiers = ['Uber','OU','BL','UU','BL2','RU','BL3','NU','BL4','PU']
 
-file = open('keylookup.pickle')
-keyLookup = pickle.load(file)
+file = open('keylookup.json', 'rb')
+keyLookup = json.load(file)
 file.close()
 
 def getUsage(filename,col,weight,usage):
@@ -43,45 +43,45 @@ def raiseAndDrop(curTiers,usage,lowest,rise,drop):
 				curTiers[poke]=lowest
 	newTiers={}
 	#start with Ubers
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if curTiers[poke] == 'Uber':
 			newTiers[poke] = 'Uber'
 
 	#next do the OU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][0] > rise and poke not in newTiers.keys():
+		if usage[poke][0] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'OU'
 
 	#next do the UU drops
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if curTiers[poke] == 'OU' and poke not in newTiers.keys():
+		if curTiers[poke] == 'OU' and poke not in list(newTiers.keys()):
 			if usage[poke][0] < drop:
 				newTiers[poke] = 'UU'
 			else:
 				newTiers[poke] = 'OU'
 
 	#next do the UU rises
-	for poke in curTiers.keys():
+	for poke in list(curTiers.keys()):
 		if poke not in usage:
 			continue
-		if usage[poke][1] > rise and poke not in newTiers.keys():
+		if usage[poke][1] > rise and poke not in list(newTiers.keys()):
 			newTiers[poke] = 'UU'
 
 	#next do the NU drops
-	for poke in curTiers.keys():
-		if curTiers[poke] == 'UU' and poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if curTiers[poke] == 'UU' and poke not in list(newTiers.keys()):
 			if usage[poke][1] < drop:
 				newTiers[poke] = 'NU'
 			else:
 				newTiers[poke] = 'UU'
 
 	#the rest are NU
-	for poke in curTiers.keys():
-		if poke not in newTiers.keys():
+	for poke in list(curTiers.keys()):
+		if poke not in list(newTiers.keys()):
 			newTiers[poke] = 'NU'
 
 	return newTiers
@@ -90,7 +90,7 @@ def main(months):
 	file = open('baseStats.json')
 	baseStats = json.loads(file.readline())
 	file.close()
-	validPokemon=baseStats.keys()
+	validPokemon=list(baseStats.keys())
 
 	formats = json.load(open('formats.json'))
 
@@ -114,7 +114,7 @@ def main(months):
 	for poke in banlists['[Gen 7] Doubles OU']:
 		curTiers['Doubles'][poke]='Uber'
 	for poke in banlists['[Gen 7] Doubles UU']:
-		if poke not in curTiers['Doubles'].keys():
+		if poke not in list(curTiers['Doubles'].keys()):
 			curTiers['Doubles'][poke]='OU'
 
 	rise =  [0.06696700846,0.04515839608,0.03406367107][len(months)-1]
@@ -124,7 +124,7 @@ def main(months):
 	usageDoubles = {}
 
 	remaining=24.0
-	for i in xrange(len(months)):
+	for i in range(len(months)):
 		weight = remaining
 		if i + 1 < len(months):
 			if i == 0:
@@ -159,7 +159,7 @@ def main(months):
 		# 				usageLC[keyify(poke)][0] += weight*nSuspect/(nRegular+nSuspect)*usageSuspect[poke]/24
 
 		usageTiers = ['doublesou','doublesuu']
-		for j in xrange(len(usageTiers)):
+		for j in range(len(usageTiers)):
 			nRegular = nSuspect = 0
 			baseline = "1630"
 			if usageTiers[j] in ['doublesou']:
@@ -203,13 +203,13 @@ def main(months):
 
 	# print ""
 	# print ""
-	print "[size=5][b]Doubles[/b][/size]"
+	print("[size=5][b]Doubles[/b][/size]")
 
 	(doublesOU,doublesUU) = usageToTiers(usageDoubles)
 	makeTable(doublesOU,"Doubles OU",keyLookup)
 		
 	newTiers['Doubles']=raiseAndDrop(curTiers['Doubles'],usageDoubles,'UU',rise,drop)
-	print ""
+	print("")
 	newUU = []
 	for poke in curTiers['Doubles']:
 		if curTiers['Doubles'][poke] != newTiers['Doubles'][poke]:
@@ -220,15 +220,15 @@ def main(months):
 					newTiers['Doubles'][poke] = newTiers['Doubles'][base]
 					continue
 			if newTiers['Doubles'][poke] != 'NU':
-				print keyLookup[poke]+" moved from Doubles "+curTiers['Doubles'][poke]+" to Doubles "+newTiers['Doubles'][poke]
+				print(keyLookup[poke]+" moved from Doubles "+curTiers['Doubles'][poke]+" to Doubles "+newTiers['Doubles'][poke])
 
-	print ""
-	print ""
-	print "[size=5][b]Doubles NU[/b][/size]"
-	print "Doubles NU is an unofficial metagame that's apparently so unpopular there's not even enough interest to support a challenge-only format. Still, it's conceivable that someone will want to play it, and that person should have an unofficial banlist to refer to. So..." 
+	print("")
+	print("")
+	print("[size=5][b]Doubles NU[/b][/size]")
+	print("Doubles NU is an unofficial metagame that's apparently so unpopular there's not even enough interest to support a challenge-only format. Still, it's conceivable that someone will want to play it, and that person should have an unofficial banlist to refer to. So...") 
 	makeTable(doublesUU,"Doubles UU",keyLookup)
 	dnuBanlist = []
-	for poke in usageDoubles.keys():
+	for poke in list(usageDoubles.keys()):
 		if poke in curTiers['Doubles']:
 			if newTiers['Doubles'][poke] == 'UU' and (usageDoubles[poke][1] >= drop or curTiers['Doubles'][poke] == 'OU'):
 				dnuBanlist.append(poke)
@@ -238,7 +238,7 @@ def main(months):
 	for poke in dnuBanlist:
 		printme += keyLookup[poke]+', '
 	printme = printme[:-2]
-	print printme
+	print(printme)
 
 
 if __name__ == "__main__":

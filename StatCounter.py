@@ -23,7 +23,7 @@
 import string
 import sys
 import math
-import cPickle as pickle
+import pickle as pickle
 import os
 import ujson as json
 import gzip
@@ -36,7 +36,7 @@ otherGuy = [1,0,2,4,3,5,7,6,9,8,11,10,12]
 
 
 tier = str(sys.argv[1])
-cutoff = 1500 #this is our default, but we can change it for '1337' stats
+cutoff = 0 #this is our default, but we can change it for '1337' stats
 teamtype = None
 
 if len(sys.argv) > 2:
@@ -66,15 +66,15 @@ if tier not in ["1v1", "challengecup1vs1"]:
 else:
 	metagamefile=False
 filename="Raw/moveset/"+tier+"/teammate"+specs+".pickle"
-teammatefile=open(filename,'w')
+teammatefile=open(filename,'wb')
 filename="Raw/moveset/"+tier+"/encounterMatrix"+specs+".pickle"
-encounterfile=open(filename,'w')
+encounterfile=open(filename,'wb')
 
 
 battleCount = 0
 teamCount = 0
-counter = {'raw': {}, 'real': {}, 'weighted': {}}
-leadCounter = {'raw': {}, 'weighted': {}}
+counter = {'raw': {}, 'real': {}, 'weighted': {}, 'wins': {}}
+leadCounter = {'raw': {}, 'weighted': {}, 'wins': {}}
 #We're not doing these right now
 #turnCounter = {}
 #KOcounter = {}
@@ -99,7 +99,7 @@ for line in file:
 	for battle in battles:
 
 		weight={}
-		if 'turns' in battle.keys() and t not in non6v6Formats:
+		if 'turns' in list(battle.keys()) and t not in non6v6Formats:
 			if battle['turns'] < 3 and t not in nonSinglesFormats:
 				continue
 			elif battle['turns'] < 2:
@@ -109,20 +109,20 @@ for line in file:
 				if teamtype not in battle[player]['tags']:
 					continue
 			team = []
-			if 'rating' in battle[player].keys():
-				if 'rpr' in battle[player]['rating'].keys() and 'rprd' in battle[player]['rating'].keys():
+			if 'rating' in list(battle[player].keys()):
+				if 'rpr' in list(battle[player]['rating'].keys()) and 'rprd' in list(battle[player]['rating'].keys()):
 					if battle[player]['rating']['rprd'] != 0.0:
 						weight[player] = weighting(battle[player]['rating']['rpr'],battle[player]['rating']['rprd'],cutoff)
 						ratingCounter.append(battle[player]['rating'])
 				
-						if 'outcome' in battle[player].keys():
+						if 'outcome' in list(battle[player].keys()):
 							WLratings[battle[player]['outcome']].append([battle[player]['rating']['rpr'],battle[player]['rating']['rprd'],weight[player]])
 				
-			if player not in weight.keys(): #if there's a ladder error, we have no idea what the player's rating is, so treat like a new player
+			if player not in list(weight.keys()): #if there's a ladder error, we have no idea what the player's rating is, so treat like a new player
 				weight[player] = weighting(1500,130.0,cutoff)
 
 				#try using outcome
-				if 'outcome' in battle[player].keys():
+				if 'outcome' in list(battle[player].keys()):
 					if battle[player]['outcome'] == 'win':
 						weight[player] = weighting(1540.16061434,122.858308077,cutoff)
 					elif battle[player]['outcome'] == 'loss':
@@ -141,21 +141,27 @@ for line in file:
 				team.append(species)
 
 				#if species not already in the tables, you gotta add them
-				if species not in counter['raw'].keys():
+				if species not in list(counter['raw'].keys()):
 					counter['raw'][species]=0.0
 					counter['real'][species]=0.0
 					counter['weighted'][species]=0.0
+					counter['wins'][species]=0.0
 			
 				#count usage
 				counter['raw'][species]=counter['raw'][species]+1.0
 				if poke['turnsOut'] > 0:
 					counter['real'][species]=counter['real'][species]+1.0
 				counter['weighted'][species]=counter['weighted'][species]+weight[player]
+				if 'outcome' in list(battle[player].keys()):
+					if battle[player]['outcome'] == 'win':
+						counter["wins"][species] = counter["wins"][species] + 1
+				else:
+					counter["wins"][species] = counter["wins"][species] + 0.5
 
 				if metagamefile:
 					#count metagame stuff
 					for tag in battle[player]['tags']:
-						if tag not in tagCounter.keys():
+						if tag not in list(tagCounter.keys()):
 							tagCounter[tag] = 0.0
 						tagCounter[tag] = tagCounter[tag]+weight[player] #metagame stuff is weighted
 					stallCounter.append([battle[player]['stalliness'],weight[player]])
@@ -165,11 +171,11 @@ for line in file:
 			#teammate stats
 			for i in range(len(team)):
 				for j in range(i):
-					if team[i] not in teammateMatrix.keys():
+					if team[i] not in list(teammateMatrix.keys()):
 						teammateMatrix[team[i]]={}
-					if team[j] not in teammateMatrix.keys():
+					if team[j] not in list(teammateMatrix.keys()):
 						teammateMatrix[team[j]]={}
-					if team[j] not in teammateMatrix[team[i]].keys():
+					if team[j] not in list(teammateMatrix[team[i]].keys()):
 						teammateMatrix[team[i]][team[j]]=0.0
 					teammateMatrix[team[i]][team[j]]=teammateMatrix[team[i]][team[j]]+weight[player] #teammate stats are weighted
 					teammateMatrix[team[j]][team[i]]=teammateMatrix[team[i]][team[j]] #nice symmetric matrix
@@ -192,11 +198,12 @@ for line in file:
 			if 'empty' in leads:
 				if len(battle['matchups']) == 0: #1v1 (or similiar) battle forfeited before started
 					continue
-				print "Something went wrong."
-				print battle
+				print("Something went wrong.")
+				print(battle)
 
 			for i in range(2):
-				if ['p1','p2'][i] not in weight:
+				player = ['p1','p2'][i]
+				if player not in weight:
 					continue
 				species = leads[i]
 				#annoying alias shit
@@ -204,22 +211,28 @@ for line in file:
 					if species in aliases[alias]:
 						species = alias
 						break
-				if species not in leadCounter['raw'].keys():
+				if species not in list(leadCounter['raw'].keys()):
 					leadCounter['raw'][species]=0.0
 					leadCounter['weighted'][species]=0.0
+					leadCounter['wins'][species]=0.0
 
 				leadCounter['raw'][species]=leadCounter['raw'][species]+1.0
 				leadCounter['weighted'][species]=leadCounter['weighted'][species]+weight[['p1','p2'][i]]
+				if 'outcome' in list(battle[player].keys()):
+					if battle[player]['outcome'] == 'win':
+						leadCounter["wins"][species] = leadCounter["wins"][species] + 1
+				else:
+					leadCounter["wins"][species] = leadCounter["wins"][species] + 0.5
 
 			#encounter Matrix
 			if not teamtype:
 				w=min(weight.values())
 				for matchup in battle['matchups']:
-					if matchup[0] not in encounterMatrix.keys():
+					if matchup[0] not in list(encounterMatrix.keys()):
 						encounterMatrix[matchup[0]]={}
-					if matchup[1] not in encounterMatrix.keys():
+					if matchup[1] not in list(encounterMatrix.keys()):
 						encounterMatrix[matchup[1]]={}
-					if matchup[1] not in encounterMatrix[matchup[0]].keys():
+					if matchup[1] not in list(encounterMatrix[matchup[0]].keys()):
 						encounterMatrix[matchup[0]][matchup[1]]=[0 for k in range(13)]
 						encounterMatrix[matchup[1]][matchup[0]]=[0 for k in range(13)]
 					encounterMatrix[matchup[0]][matchup[1]][matchup[2]]=encounterMatrix[matchup[0]][matchup[1]][matchup[2]]+w #encounter Matrix is weighed
@@ -233,10 +246,10 @@ for i in ['raw','real','weighted']:
 	total[i] = sum(counter[i].values())
 
 pokedict = {}
-for i in counter['raw'].keys():
-	pokedict[i]=[counter['raw'][i],counter['real'][i],counter['weighted'][i]]
+for i in list(counter['raw'].keys()):
+	pokedict[i]=[counter['raw'][i],counter['real'][i],counter['weighted'][i], counter["wins"][i]]
 
-if 'empty' in pokedict.keys(): #delete no-entry slot
+if 'empty' in list(pokedict.keys()): #delete no-entry slot
 		del pokedict['empty']
 
 pokes = []
@@ -261,15 +274,15 @@ try:
 	usagefile.write(" Avg. weight/team: "+str(round(total['weighted']/battleCount/12,3))+"\n")
 except ZeroDivisionError:
 	usagefile.write(" Avg. weight/team: 0\n")
-usagefile.write(" + ---- + ------------------ + --------- + ------ + ------- + ------ + ------- + \n")
-usagefile.write(" | Rank | Pokemon            | Usage %   | Raw    | %       | Real   | %       | \n")
-usagefile.write(" + ---- + ------------------ + --------- + ------ + ------- + ------ + ------- + \n")
+usagefile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
+usagefile.write(" | Rank | Pokemon            | Usage %   | Raw    | Win Rate | \n")
+usagefile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
 for i in range(0,len(pokes)):
 	if pokes[i][1] == 0:
 		break
-	usagefile.write(' | %-4d | %-18s | %8.5f%% | %-6d | %6.3f%% | %-6d | %6.3f%% | \n' % (i+1,pokes[i][0],100.0*pokes[i][3]/max(total['weighted'],1.0)*6.0,pokes[i][1],100.0*pokes[i][1]/max(total['raw'],1.0)*6.0,pokes[i][2],100.0*pokes[i][2]/max(total['real'],1.0)*6.0))
+	usagefile.write(' | %-4d | %-18s | %8.4f%% | %-6d | %7.3f%% | \n' % (i+1, pokes[i][0], 100.0*pokes[i][3]/max(total['weighted'],1.0)*6.0, pokes[i][1], 100*pokes[i][4]/pokes[i][1]))
 	p.append(pokes[i])
-usagefile.write(" + ---- + ------------------ + --------- + ------ + ------- + ------ + ------- + \n")
+usagefile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
 usagefile.close()
 
 if t not in nonSinglesFormats and t not in ['1v1','challengecup1vs1']: #lead stats for doubles is not currently supported
@@ -282,22 +295,22 @@ if t not in nonSinglesFormats and t not in ['1v1','challengecup1vs1']: #lead sta
 	leadsfile=open(filename,'w')
 
 	pokedict = {}
-	for i in leadCounter['raw'].keys():
-		pokedict[i]=[leadCounter['raw'][i],leadCounter['weighted'][i]]
-	if 'empty' in pokedict.keys(): #delete no-entry slot
+	for i in list(leadCounter['raw'].keys()):
+		pokedict[i]=[leadCounter['raw'][i], leadCounter['weighted'][i], leadCounter['wins'][i]]
+	if 'empty' in list(pokedict.keys()): #delete no-entry slot
 			del pokedict['empty']
 	pokes = []
 	for i in pokedict:
 		pokes.append([i]+pokedict[i])
 	pokes=sorted(pokes, key=lambda pokes:-pokes[2])
 	leadsfile.write(" Total leads: "+str(battleCount*2)+"\n")
-	leadsfile.write(" + ---- + ------------------ + --------- + ------ + ------- + \n")
-	leadsfile.write(" | Rank | Pokemon            | Usage %   | Raw    | %       | \n")
-	leadsfile.write(" + ---- + ------------------ + --------- + ------ + ------- + \n")
+	leadsfile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
+	leadsfile.write(" | Rank | Pokemon            | Usage %   | Raw    | Win Rate | \n")
+	leadsfile.write(" + ---- + ------------------ + --------- + ------ + -------- + \n")
 	for i in range(0,len(pokes)):
 		if pokes[i][1] == 0:
 			break
-		leadsfile.write(" | %-4d | %-18s | %8.5f%% | %-6d | %6.3f%% | \n" % (i+1,pokes[i][0],100.0*pokes[i][2]/max(1.0,sum(leadCounter['weighted'].values())),pokes[i][1],100.0*pokes[i][1]/max(1.0,sum(leadCounter['raw'].values()))))
+		leadsfile.write(" | %-4d | %-18s | %8.5f%% | %-6d | %7.3f%% | \n" % (i+1, pokes[i][0], 100.0*pokes[i][2]/max(1.0,sum(leadCounter['weighted'].values())), pokes[i][1], 100*pokes[i][3]/pokes[i][1]))
 	leadsfile.write(" + ---- + ------------------ + --------- + ------ + ------- + \n")
 	leadsfile.close()
 
@@ -321,8 +334,8 @@ if metagamefile:
 
 	if stallCounter:
 		#figure out a good bin range by looking at .1% and 99.9% points
-		low = stallCounter[len(stallCounter)/1000][0]
-		high = stallCounter[len(stallCounter)-len(stallCounter)/1000-1][0]
+		low = stallCounter[len(stallCounter)//1000][0]
+		high = stallCounter[len(stallCounter)-len(stallCounter)//1000-1][0]
 		
 
 		nbins = 13 #this is actually only a rough idea--I think it might be the minimum?
@@ -352,7 +365,8 @@ if metagamefile:
 		nbins = len(histogram)
 
 		for start in range(len(stallCounter)):
-			if stallCounter[start] >= histogram[0][0]-binSize/2:
+			# TODO: Is this correct?
+			if max(stallCounter[start]) >= histogram[0][0]-binSize/2:
 				break
 
 		j=0

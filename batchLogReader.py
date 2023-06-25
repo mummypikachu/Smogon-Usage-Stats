@@ -8,17 +8,18 @@ import sys
 import ujson as json
 import gzip
 import copy
-#import cPickle as pickle
+# import cPickle as pickle
 import math
 import os
-import ladderdev.Glicko as Glicko
-import cPickle as pickle
+# from . import ladderdev.Glicko as Glicko
+from ladderdev import Glicko
+import pickle as pickle
 
 from common import *
 from TA import *
 
-file = open('keylookup.pickle')
-keyLookup = pickle.load(file)
+file = open('keylookup.json', 'rb')
+keyLookup = json.load(file)
 file.close()
 
 def getTeamsFromLog(log,mrayAllowed):
@@ -28,7 +29,7 @@ def getTeamsFromLog(log,mrayAllowed):
 		teams[team]=[]
 
 		for i in range(len(log[team])):
-			if 'species' in log[team][i].keys():
+			if 'species' in list(log[team][i].keys()):
 				species = log[team][i]['species']
 			else: #apparently randbats usually don't contain the species field?
 				species = log[team][i]['name']
@@ -36,13 +37,13 @@ def getTeamsFromLog(log,mrayAllowed):
 				sys.stderr.write('Problem with '+filename+'\n')
 				return False
 			#very odd that these == needed--I've seen ".Species", "(Species)", "species", "Species)", "SPECIES"...
-			if species[0] not in string.lowercase + string.uppercase:
+			if not species[0].isalpha():
 				species=species[1:]
 			while species[len(species)-1] in ')". ':
 				species=species[:len(species)-1]
 			species = keyify(species)
 
-			if 'item' in log[team][i].keys():
+			if 'item' in list(log[team][i].keys()):
 				item = keyify(log[team][i]['item'])
 				if item == '':
 					item = 'nothing'
@@ -50,25 +51,25 @@ def getTeamsFromLog(log,mrayAllowed):
 				item = 'nothing'
 
 
-			if 'happiness' in log[team][i].keys():
+			if 'happiness' in list(log[team][i].keys()):
 				happiness = log[team][i]['happiness']
 			else:
 				happiness = 255
-			if 'nature' in log[team][i].keys():
+			if 'nature' in list(log[team][i].keys()):
 				nature = keyify(log[team][i]['nature'])
-				if nature not in nmod.keys(): #zarel said this is what PS does
+				if nature not in list(nmod.keys()): #zarel said this is what PS does
 					nature = 'hardy'
 			else:
 				nature = 'hardy'
 			evs = {'hp': 0, 'atk': 0, 'def': 0, 'spa': 0, 'spd': 0, 'spe': 0}
-			if 'evs' in log[team][i].keys():
+			if 'evs' in list(log[team][i].keys()):
 				for stat in log[team][i]['evs']:
 					evs[stat]=int(log[team][i]['evs'][stat])	
 			ivs = {'hp': 31, 'atk': 31, 'def': 31, 'spa': 31, 'spd': 31, 'spe': 31}
-			if 'ivs' in log[team][i].keys():
+			if 'ivs' in list(log[team][i].keys()):
 				for stat in log[team][i]['ivs']:
 					ivs[stat]=int(log[team][i]['ivs'][stat])
-			if 'moves' in log[team][i].keys():
+			if 'moves' in list(log[team][i].keys()):
 				moves = log[team][i]['moves']
 			else:
 				moves = []
@@ -83,15 +84,16 @@ def getTeamsFromLog(log,mrayAllowed):
 			#figure out Hidden Power from IVs
 			if 'hiddenpower' in moves:
 				hptype=15*(ivs['hp']%2+2*(ivs['atk']%2)+4*(ivs['def']%2)+8*(ivs['spe']%2)+16*(ivs['spa']%2)+32*(ivs['spd']%2))/63
+				hptype = int(hptype)
 				moves.remove('hiddenpower')
 				moves.insert(0,'hiddenpower'+['fighting','flying','poison','ground','rock','bug','ghost','steel','fire','water','grass','electric','psychic','ice','dragon','dark'][hptype])
-			if 'ability' in log[team][i].keys():
+			if 'ability' in list(log[team][i].keys()):
 				ability = keyify(log[team][i]['ability'])
 			else:
 				ability = 'unknown'
-			if 'forcedLevel' in log[team][i].keys():
+			if 'forcedLevel' in list(log[team][i].keys()):
 				level = int(log[team][i]['forcedLevel'])
-			elif 'level' in log[team][i].keys():
+			elif 'level' in list(log[team][i].keys()):
 				level = int(log[team][i]['level'])
 			else:
 				level = 100
@@ -114,7 +116,7 @@ def getTeamsFromLog(log,mrayAllowed):
 						ability=mega[2]
 						break
 
-			if species[0] in string.lowercase or species[1] in string.uppercase:
+			if species[0].islower() or species[1].isupper():
 				species = species.title()
 
 			for s in aliases: #combine appearance-only variations and weird PS quirks
@@ -124,8 +126,9 @@ def getTeamsFromLog(log,mrayAllowed):
 			try:	
 				species=keyLookup[keyify(species)]
 			except:
-				sys.stderr.write(species+' not in keyLookup.\n')
-				return False
+				pass
+				# sys.stderr.write(species+' not in keyLookup.\n')
+				# return False
 
 			for s in aliases: #this 2nd one is needed to deal with Nidoran
 				if species in aliases[s]:
@@ -168,26 +171,16 @@ def LogReader(filename,tier,movesets,ratings):
 	#determine log type
 	spacelog = True
 	doublelog = True
-	if 'log' in log.keys():
+	if 'log' in list(log.keys()):
 		if log['log'][0][0:2] != '| ':
 			spacelog = False
 
-	#check for log length
-	#if tier not in ['challengecup1vs1','doublesvgc2013dev','smogondoubles','1v1','gbusingles','globalshowdown']:
-	#	longEnough = False
-	#	if 'log' not in log.keys():
-	#		if int(log['turns']) > 5: 
-	#			longEnough = True
-	#	else:
-	#		for line in log['log']:
-	#			if (spacelog and line[2:10] == 'turn | 6') or (not spacelog and line[1:7] == 'turn|6'):
-	#				longEnough = True
-	#				break
-	#	if not longEnough:
-	#		return False
+	if 'turns' not in list(log.keys()):
+		print(filename+' has no turn count')
+		return False
 
-	if 'turns' not in log.keys():
-		print filename+' has no turn count'
+	# Don't collect usage stats on games that are too short
+	if log['turns'] < 3:
 		return False
 		
 
@@ -196,7 +189,7 @@ def LogReader(filename,tier,movesets,ratings):
 	rating = {}
 
 	whowon = 0 #0 for tie/unknown, 1 for p1, 2 for p2
-	if 'log' in log.keys():
+	if 'log' in list(log.keys()):
 		#if '|tie' in log['log']:
 		#	whowon = 0
 		if '|win|'+log['p1'] in log['log']:
@@ -210,11 +203,11 @@ def LogReader(filename,tier,movesets,ratings):
 				whowon = 2
 	if ratings == None:
 		for i in [['p1rating','p1team'],['p2rating','p2team']]:
-			if i[0] in log.keys():
+			if i[0] in list(log.keys()):
 				rating[i[1]]={}
 				if type(log[i[0]]) is dict:
 					for j in ['r','rd','rpr','rprd']:
-						if j in log[i[0]].keys():
+						if j in list(log[i[0]].keys()):
 							try:
 								rating[i[1]][j]=float(log[i[0]][j])
 							#looks like it's possible that rating will be recorded as "None". In that case, just
@@ -232,21 +225,24 @@ def LogReader(filename,tier,movesets,ratings):
 				#not used: 'w','l','t','sigma','rptime','rpsigma','lacre','oldacre','oldrdacre'	
 	else:
 		for player in [log['p1'],log['p2']]:
-			if player not in ratings.keys():
+			if player not in list(ratings.keys()):
 				ratings[player]=Glicko.newPlayer()
 		Glicko.update(ratings[log['p1']],ratings[log['p2']],whowon)
+
 		for player in [[log['p1'],'p1team'],[log['p2'],'p2team']]:
 			r=ratings[player[0]]['R']
 			rd=ratings[player[0]]['RD']
-			rpr=Glicko.provisional(ratings[player[0]])['R']
-			rprd=Glicko.provisional(ratings[player[0]])['RD']
+			rpr=Glicko.newRatingPeriod(ratings[player[0]])['R']
+			rprd=Glicko.newRatingPeriod(ratings[player[0]])['RD']
+			# rpr=Glicko.provisional(ratings[player[0]])['R']
+			# rprd=Glicko.provisional(ratings[player[0]])['RD']
 			rating[player[1]]={'r':r,'rd':rd,'rpr':rpr,'rprd':rprd}
 
 	#get pokemon info
 	teams = getTeamsFromLog(log,mrayAllowed)
 	if teams == False:
-		 sys.stderr.write('Skipping log:\n'+filename+'\n')
-		 return False
+		sys.stderr.write('Skipping log:\n'+filename+'\n')
+		return False
 	for team in ['p1team','p2team']:
 		trainer = log[team[:2]]
 		for poke in teams[team]:
@@ -270,8 +266,9 @@ def LogReader(filename,tier,movesets,ratings):
 			#	os.makedirs(d)
 			#msfile=open(outname,'ab')
 			if keyify(poke['species']) == 'meloettapirouette':
-				print filename
-			writeme={'trainer':trainer.encode('ascii', 'ignore'),
+				print(filename)
+			writeme={'trainer':trainer,
+			# writeme={'trainer':trainer.encode('ascii', 'ignore'),
 				'level':poke['level'],
 				'ability':poke['ability'],
 				'item':poke['item'],
@@ -281,7 +278,7 @@ def LogReader(filename,tier,movesets,ratings):
 				'moves':poke['moves'],
 				'happiness':poke['happiness'],
 				'tags':analysis['tags']}
-			if team in rating.keys():
+			if team in list(rating.keys()):
 				writeme['rating']=rating[team]
 			#if whowon == 0:
 			#	writeme['outcome']='tie'
@@ -291,7 +288,7 @@ def LogReader(filename,tier,movesets,ratings):
 				writeme['outcome']='loss'
 			#msfile.write(lzma.compress(json.dumps(writeme))+'\n')
 			#msfile.close()
-			if keyify(poke['species']) not in movesets.keys():
+			if keyify(poke['species']) not in list(movesets.keys()):
 				movesets[keyify(poke['species'])]=[]
 			movesets[keyify(poke['species'])].append(writeme)
 
@@ -300,21 +297,21 @@ def LogReader(filename,tier,movesets,ratings):
 			teams[team][len(teams[team])-1]['outcome']='win'
 		elif whowon != 0:
 			teams[team][len(teams[team])-1]['outcome']='loss'
-		if team in rating.keys():
+		if team in list(rating.keys()):
 			teams[team][len(teams[team])-1]['rating']=rating[team]
 
 	#nickanmes
 	nicks = []
 	for i in range(0,6):
 		if len(log['p1team'])>i:
-			if 'name' in log['p1team'][i].keys():
+			if 'name' in list(log['p1team'][i].keys()):
 				nicks.append("p1: "+log['p1team'][i]['name'])
 			else:
 				nicks.append("p1: "+log['p1team'][i]['species'])
 		else:
 			nicks.append("p1: empty")
 		if len(log['p2team'])>i:
-			if 'name' in log['p2team'][i].keys():
+			if 'name' in list(log['p2team'][i].keys()):
 				nicks.append("p2: "+log['p2team'][i]['name'])
 			else:
 				nicks.append("p2: "+log['p2team'][i]['species'])
@@ -335,7 +332,7 @@ def LogReader(filename,tier,movesets,ratings):
 		turnsOut.append(0)
 		KOs.append(0)
 
-	if 'log' in log.keys() and tier not in nonSinglesFormats:
+	if 'log' in list(log.keys()) and tier not in nonSinglesFormats:
 		#determine initial pokemon
 		active = [-1,-1]
 		for line in log['log']:
@@ -384,7 +381,7 @@ def LogReader(filename,tier,movesets,ratings):
 					else:
 						speciesBase = species
 
-					for i in xrange(6):
+					for i in range(6):
 						if ts[i][1].startswith(speciesBase):
 							species = ts[i][1]
 							active[0] = i
@@ -430,7 +427,7 @@ def LogReader(filename,tier,movesets,ratings):
 					else:
 						speciesBase = species
 
-					for i in xrange(6,12):
+					for i in range(6,12):
 						if ts[i][1].startswith(speciesBase):
 							species = ts[i][1]
 							active[1] = i
@@ -458,272 +455,274 @@ def LogReader(filename,tier,movesets,ratings):
 		uturnko = False
 		mtemp = []
 
-		for line in log['log'][start:]:
-			if len(line) < 2 or not line.startswith('|'):
-				continue
-			parsed_line = [segment.strip() for segment in line.split('|')]
-			#print line
-			#identify what kind of message is on this line
-			if len(parsed_line) < 2:
-				sys.stderr.write('Problem with '+filename+'\n')
-				sys.stderr.write('Could not parse line:\n')
-				sys.stderr.write(line)
-				return False
-			linetype = parsed_line[1]
-
-			if linetype == "turn":
-				matchups = matchups + mtemp
-				mtemp = []
-
-				#reset for start of turn
-				roar = uturn = uturnko = fodder = hazard = False
-				ko = [False,False]
-				switch = [False,False]
-
-				#Mark each poke as having been out for an additional turn
-				turnsOut[active[0]]=turnsOut[active[0]]+1
-				turnsOut[active[1]]=turnsOut[active[1]]+1
-
-			elif linetype in ["win","tie"]: 
-				#close out last matchup
-				if ko[0] or ko[1]: #if neither poke was KOed, match ended in forfeit, and we don't care
-					matchup = [ts[active[0]][1],ts[active[1]][1],12]
-					if ko[0] and ko[1]:
-						KOs[active[0]] = KOs[active[0]]+1
-						KOs[active[1]] = KOs[active[1]]+1
-						matchup[2]=2#double down
-					else:
-						KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
-						matchup[2] = ko[1]	#0: poke1 was KOed
-									#1: poke2 was KOed
-						if uturnko: #would rather not use this flag...
-							mtemp=mtemp[:len(mtemp)-1]
-							matchup[2] = matchup[2] + 8	#8: poke1 was u-turn KOed
-											#9: poke2 was u-turn KOed
-						
-					mtemp.append(matchup)
-				matchups=matchups+mtemp
-			
-
-			elif linetype == "move": #check for Roar, etc.; U-Turn, etc.
-				hazard = False
-				#identify attacker and skip its name
-				found = False
-				if doublelog:
-					line=line[:8+3*spacelog]+line[9+3*spacelog:]
-				for nick in nicks:
-					if line[6+3*spacelog:].startswith(nick):
-						if found: #the trainer was a d-bag
-							if len(nick) < len(found):
-								continue	
-						found = nick
-				tempnicks = copy.copy(nicks)
-				while not found: #PS fucked up the names. We fix by shaving a character at a time off the nicknames
-					foundidx=-1	
-					for i in range(len(tempnicks)):
-						if len(tempnicks[i])>1:
-							tempnicks[i]=tempnicks[i][:len(tempnicks[i])-1]
-						if line[6+3*spacelog:].startswith(tempnicks[i]):
-							if found:
-								if len(tempnicks[i]) < len(found):
-									continue
-							found = tempnicks[i]
-							foundidx = i
-					if found:
-						nicks[i]=found
-					else:
-						tryAgain = False
-						for i in range(len(tempnicks)):
-							if len(tempnicks[i])>1:
-								tryAgain = True
-								break
-						if not tryAgain:
-							sys.stderr.write("Nick not found.\n")
-							sys.stderr.write("In file: "+argv[1]+"\n")
-							sys.stderr.write(line[6+3*spacelog:]+"\n")
-							sys.stderr.write(str(nicks)+"\n")
-							return False
-						
-				move = line[7+5*spacelog+len(found):string.find(line,"|",7+5*spacelog+len(found))-1*spacelog]
-				if move in ["Roar","Whirlwind","Circle Throw","Dragon Tail"]:
-					roar = True
-				elif move in ["U-Turn","U-turn","Volt Switch","Baton Pass"]:
-					uturn = True
-
-			elif linetype == "-enditem": #check for Red Card, Eject Button
-				#search for relevant items
-				if string.rfind(line,"Red Card") > -1:
-					roar = True
-				elif string.rfind(line,"Eject Button") > -1:
-					uturn = True
-
-			elif linetype == "faint": #KO
-				#who fainted?
-				p=int(line[8+3*spacelog])-1
-				ko[p]=1
-				if switch[p]==1: #fainted on the same turn that it was switched in
-					fodder=True
-			
-				if uturn:
-					uturn=False
-					uturnko=True
-
-			elif linetype == "replace": #it was Zorua/Zoroark all along!
-				p=10+3*spacelog
-
-				if len(parsed_line) < 4:
+		# Don't run this analysis in FFA
+		if ("p3" not in log):
+			for line in log['log'][start:]:
+				if len(line) < 2 or not line.startswith('|'):
+					continue
+				parsed_line = [segment.strip() for segment in line.split('|')]
+				#print line
+				#identify what kind of message is on this line
+				if len(parsed_line) < 2:
 					sys.stderr.write('Problem with '+filename+'\n')
 					sys.stderr.write('Could not parse line:\n')
 					sys.stderr.write(line)
 					return False
+				linetype = parsed_line[1]
 
-				species = parsed_line[3]
-				# remove gender
-				species = species.split(',')[0]
+				if linetype == "turn":
+					matchups = matchups + mtemp
+					mtemp = []
 
-				for s in aliases: #combine appearance-only variations and weird PS quirks
-					if species in aliases[s]:
-						species = s
-						break
+					#reset for start of turn
+					roar = uturn = uturnko = fodder = hazard = False
+					ko = [False,False]
+					switch = [False,False]
 
-				if [ts[11*(int(line[p])-1)][0],species] not in ts:
-					if species == 'Shaymin' and [ts[11*(int(line[p])-1)][0],'Shaymin-Sky'] in ts:
-						#if Shaymin-Sky gets frozen, it reverts to land forme
-						species = 'Shaymin-Sky'
-					else:
-						found = False
-						#try undoing a mega evolution
-						if species == 'Greninja-Ash':
-							speciesBase = 'Greninja'
-						elif species == 'Zygarde-Complete':
-							speciesBase = 'Zygarde'
-						elif species.startswith('Mimikyu'):
-							speciesBase = 'Mimikyu'
-						elif species == 'Necrozma-Ultra':
-							speciesBase = 'Necrozma'
-						elif species.endswith('-Mega') or species.endswith('-Mega-X') or species.endswith('-Mega-Y') or species.endswith('-Primal'):
-							if species.endswith('-Mega'):
-								speciesBase = species[:-5]
-							else:
-								speciesBase = species[:-7]
-						else:
-							speciesBase = species
+					#Mark each poke as having been out for an additional turn
+					turnsOut[active[0]]=turnsOut[active[0]]+1
+					turnsOut[active[1]]=turnsOut[active[1]]+1
 
-						for i in xrange(6*(int(line[p])-1),6*int(line[p])):
-							if ts[i][1].startswith(speciesBase):
-								species = ts[i][1]
-								found = True
-								break
-						if not found:
-							#maybe it's a nickname thing
-							nick = species[species.find(' ')+1:]
-							player_no = int(species[1])
-							for i in range(6):
-								if nicks[2*i+player_no-1].endswith(nick):
-									found = True
-									species = ts[6*(player_no-1)+i][1]
-									break
-						if not found:
-							sys.stderr.write('Problem with '+filename+'\n')
-							sys.stderr.write('(Pokemon not in ts) (3)\n')
-							sys.stderr.write(str([ts[11*(int(line[p])-1)][0],species])+'\n')
-							return False
-				active[int(line[p])-1]=ts.index([ts[11*(int(line[p])-1)][0],species])
-				#really, it would be better to go back and revise previous affected matchups, but that be a lot more work
-
-			elif linetype in ["switch","drag"]: #switch out: new matchup!
-				if linetype == "switch":
-					p=9+3*spacelog
-				else:
-					p=7+3*spacelog	
-				switch[int(line[p])-1]=True
-
-				if switch[0] and switch[1] and not fodder: #need to revise previous matchup
-					matchup=mtemp[len(mtemp)-1]
-					matchup[2]=12
-					if (not ko[0]) and (not ko[1]): #double switch
-						matchup[2]=5 
-					elif ko[0] and ko[1]: #double down
-						KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
-						matchup[2]=2
-					else: #u-turn KO (note that this includes hit-by-red-card-and-dies and roar-then-die-by-residual-dmg)
-						KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
-						matchup[2]=ko[1]+8
-					mtemp[len(mtemp)-1]=matchup
-				else:
-					#close out old matchup
-					#it is utterly imperative that the p1 poke goes first and the p2 poke second
-					matchup = [ts[active[0]][1],ts[active[1]][1],12]
-					#if ko[0] and ko[1]: #double down
-					if ko[0] or ko[1]:
-						if fodder and hazard: #if dies on switch-in due to an attack, it's still "KOed"
-							matchup[2] = ko[1]+10 #foddered
+				elif linetype in ["win","tie"]: 
+					#close out last matchup
+					if ko[0] or ko[1]: #if neither poke was KOed, match ended in forfeit, and we don't care
+						matchup = [ts[active[0]][1],ts[active[1]][1],12]
+						if ko[0] and ko[1]:
+							KOs[active[0]] = KOs[active[0]]+1
+							KOs[active[1]] = KOs[active[1]]+1
+							matchup[2]=2#double down
 						else:
 							KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
-							matchup[2] = ko[1]
-					else:
-						matchup[2]=3+switch[1]  #3: poke1 switched out
-									#4: poke2 switched out
-						if roar:
-							matchup[2]=matchup[2]+3	#6: poke1 was forced out
-										#7: poke2 was forced out
-					mtemp.append(matchup)
-		
-				#new matchup!
-				uturn = roar = fodder = False
-				hazard = True
+							matchup[2] = ko[1]	#0: poke1 was KOed
+										#1: poke2 was KOed
+							if uturnko: #would rather not use this flag...
+								mtemp=mtemp[:len(mtemp)-1]
+								matchup[2] = matchup[2] + 8	#8: poke1 was u-turn KOed
+												#9: poke2 was u-turn KOed
+							
+						mtemp.append(matchup)
+					matchups=matchups+mtemp
+				
 
-				if len(parsed_line) < 4:
-					sys.stderr.write('Problem with '+filename+'\n')
-					sys.stderr.write('Could not parse line:\n')
-					sys.stderr.write(line)
-					return False
-
-				species = parsed_line[3]
-				# remove gender
-				species = species.split(',')[0]
-				while ',' in species:
-					species = species[0:string.rfind(species,',')]
-				for s in aliases: #combine appearance-only variations and weird PS quirks
-					if species in aliases[s]:
-						species = s
-						break
-
-				if [ts[11*(int(line[p])-1)][0],species] not in ts:
-					if species == 'Shaymin' and [ts[11*(int(line[p])-1)][0],'Shaymin-Sky'] in ts:
-					#if Shaymin-Sky gets frozen, it reverts to land forme
-						species = 'Shaymin-Sky'
-					else:
-						found = False
-						#try undoing a mega evolution
-						if species == 'Greninja-Ash':
-							speciesBase = 'Greninja'
-						elif species == 'Zygarde-Complete':
-							speciesBase = 'Zygarde'
-						elif species.startswith('Mimikyu'):
-							speciesBase = 'Mimikyu'
-						elif species == 'Necrozma-Ultra':
-							speciesBase = 'Necrozma'
-						elif species.endswith('-Mega') or species.endswith('-Mega-X') or species.endswith('-Mega-Y') or species.endswith('-Primal'):
-							if species.endswith('-Mega'):
-								speciesBase = species[:-5]
-							else:
-								speciesBase = species[:-7]
+				elif linetype == "move": #check for Roar, etc.; U-Turn, etc.
+					hazard = False
+					#identify attacker and skip its name
+					found = False
+					if doublelog:
+						line=line[:8+3*spacelog]+line[9+3*spacelog:]
+					for nick in nicks:
+						if line[6+3*spacelog:].startswith(nick):
+							if found: #the trainer was a d-bag
+								if len(nick) < len(found):
+									continue	
+							found = nick
+					tempnicks = copy.copy(nicks)
+					while not found: #PS fucked up the names. We fix by shaving a character at a time off the nicknames
+						foundidx=-1	
+						for i in range(len(tempnicks)):
+							if len(tempnicks[i])>1:
+								tempnicks[i]=tempnicks[i][:len(tempnicks[i])-1]
+							if line[6+3*spacelog:].startswith(tempnicks[i]):
+								if found:
+									if len(tempnicks[i]) < len(found):
+										continue
+								found = tempnicks[i]
+								foundidx = i
+						if found:
+							nicks[i]=found
 						else:
-							speciesBase = species
+							tryAgain = False
+							for i in range(len(tempnicks)):
+								if len(tempnicks[i])>1:
+									tryAgain = True
+									break
+							if not tryAgain:
+								sys.stderr.write("Nick not found.\n")
+								sys.stderr.write("In file: "+argv[1]+"\n")
+								sys.stderr.write(line[6+3*spacelog:]+"\n")
+								sys.stderr.write(str(nicks)+"\n")
+								return False
+							
+					move = line[7+5*spacelog+len(found):line.find("|",7+5*spacelog+len(found))-1*spacelog]
+					if move in ["Roar","Whirlwind","Circle Throw","Dragon Tail"]:
+						roar = True
+					elif move in ["U-Turn","U-turn","Volt Switch","Baton Pass"]:
+						uturn = True
 
-						for i in xrange(6*(int(line[p])-1),6*int(line[p])):
-							if ts[i][1].startswith(speciesBase):
-								species = ts[i][1]
-								found = True
-								break
-						if not found:
-							print ts
-							sys.stderr.write('Problem with '+filename+'\n')
-							sys.stderr.write('(Pokemon not in ts) (4)\n')
-							sys.stderr.write(str([ts[11*(int(line[p])-1)][0],species])+'\n')
-							return False
-				active[int(line[p])-1]=ts.index([ts[11*(int(line[p])-1)][0],species])
+				elif linetype == "-enditem": #check for Red Card, Eject Button
+					#search for relevant items
+					if line.rfind("Red Card") > -1:
+						roar = True
+					elif line.rfind("Eject Button") > -1:
+						uturn = True
+
+				elif linetype == "faint": #KO
+					#who fainted?
+					p=int(line[8+3*spacelog])-1
+					ko[p]=1
+					if switch[p]==1: #fainted on the same turn that it was switched in
+						fodder=True
+				
+					if uturn:
+						uturn=False
+						uturnko=True
+
+				elif linetype == "replace": #it was Zorua/Zoroark all along!
+					p=10+3*spacelog
+
+					if len(parsed_line) < 4:
+						sys.stderr.write('Problem with '+filename+'\n')
+						sys.stderr.write('Could not parse line:\n')
+						sys.stderr.write(line)
+						return False
+
+					species = parsed_line[3]
+					# remove gender
+					species = species.split(',')[0]
+
+					for s in aliases: #combine appearance-only variations and weird PS quirks
+						if species in aliases[s]:
+							species = s
+							break
+
+					if [ts[11*(int(line[p])-1)][0],species] not in ts:
+						if species == 'Shaymin' and [ts[11*(int(line[p])-1)][0],'Shaymin-Sky'] in ts:
+							#if Shaymin-Sky gets frozen, it reverts to land forme
+							species = 'Shaymin-Sky'
+						else:
+							found = False
+							#try undoing a mega evolution
+							if species == 'Greninja-Ash':
+								speciesBase = 'Greninja'
+							elif species == 'Zygarde-Complete':
+								speciesBase = 'Zygarde'
+							elif species.startswith('Mimikyu'):
+								speciesBase = 'Mimikyu'
+							elif species == 'Necrozma-Ultra':
+								speciesBase = 'Necrozma'
+							elif species.endswith('-Mega') or species.endswith('-Mega-X') or species.endswith('-Mega-Y') or species.endswith('-Primal'):
+								if species.endswith('-Mega'):
+									speciesBase = species[:-5]
+								else:
+									speciesBase = species[:-7]
+							else:
+								speciesBase = species
+
+							for i in range(6*(int(line[p])-1),6*int(line[p])):
+								if ts[i][1].startswith(speciesBase):
+									species = ts[i][1]
+									found = True
+									break
+							if not found:
+								#maybe it's a nickname thing
+								nick = species[species.find(' ')+1:]
+								player_no = int(species[1])
+								for i in range(6):
+									if nicks[2*i+player_no-1].endswith(nick):
+										found = True
+										species = ts[6*(player_no-1)+i][1]
+										break
+							if not found:
+								sys.stderr.write('Problem with '+filename+'\n')
+								sys.stderr.write('(Pokemon not in ts) (3)\n')
+								sys.stderr.write(str([ts[11*(int(line[p])-1)][0],species])+'\n')
+								return False
+					active[int(line[p])-1]=ts.index([ts[11*(int(line[p])-1)][0],species])
+					#really, it would be better to go back and revise previous affected matchups, but that be a lot more work
+
+				elif linetype in ["switch","drag"]: #switch out: new matchup!
+					if linetype == "switch":
+						p=9+3*spacelog
+					else:
+						p=7+3*spacelog	
+					switch[int(line[p])-1]=True
+
+					if switch[0] and switch[1] and not fodder: #need to revise previous matchup
+						matchup=mtemp[len(mtemp)-1]
+						matchup[2]=12
+						if (not ko[0]) and (not ko[1]): #double switch
+							matchup[2]=5 
+						elif ko[0] and ko[1]: #double down
+							KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
+							matchup[2]=2
+						else: #u-turn KO (note that this includes hit-by-red-card-and-dies and roar-then-die-by-residual-dmg)
+							KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
+							matchup[2]=ko[1]+8
+						mtemp[len(mtemp)-1]=matchup
+					else:
+						#close out old matchup
+						#it is utterly imperative that the p1 poke goes first and the p2 poke second
+						matchup = [ts[active[0]][1],ts[active[1]][1],12]
+						#if ko[0] and ko[1]: #double down
+						if ko[0] or ko[1]:
+							if fodder and hazard: #if dies on switch-in due to an attack, it's still "KOed"
+								matchup[2] = ko[1]+10 #foddered
+							else:
+								KOs[active[ko[0]]] = KOs[active[ko[0]]]+1
+								matchup[2] = ko[1]
+						else:
+							matchup[2]=3+switch[1]  #3: poke1 switched out
+										#4: poke2 switched out
+							if roar:
+								matchup[2]=matchup[2]+3	#6: poke1 was forced out
+											#7: poke2 was forced out
+						mtemp.append(matchup)
+			
+					#new matchup!
+					uturn = roar = fodder = False
+					hazard = True
+
+					if len(parsed_line) < 4:
+						sys.stderr.write('Problem with '+filename+'\n')
+						sys.stderr.write('Could not parse line:\n')
+						sys.stderr.write(line)
+						return False
+
+					species = parsed_line[3]
+					# remove gender
+					species = species.split(',')[0]
+					while ',' in species:
+						species = species[0:string.rfind(species,',')]
+					for s in aliases: #combine appearance-only variations and weird PS quirks
+						if species in aliases[s]:
+							species = s
+							break
+
+					if [ts[11*(int(line[p])-1)][0],species] not in ts:
+						if species == 'Shaymin' and [ts[11*(int(line[p])-1)][0],'Shaymin-Sky'] in ts:
+						#if Shaymin-Sky gets frozen, it reverts to land forme
+							species = 'Shaymin-Sky'
+						else:
+							found = False
+							#try undoing a mega evolution
+							if species == 'Greninja-Ash':
+								speciesBase = 'Greninja'
+							elif species == 'Zygarde-Complete':
+								speciesBase = 'Zygarde'
+							elif species.startswith('Mimikyu'):
+								speciesBase = 'Mimikyu'
+							elif species == 'Necrozma-Ultra':
+								speciesBase = 'Necrozma'
+							elif species.endswith('-Mega') or species.endswith('-Mega-X') or species.endswith('-Mega-Y') or species.endswith('-Primal'):
+								if species.endswith('-Mega'):
+									speciesBase = species[:-5]
+								else:
+									speciesBase = species[:-7]
+							else:
+								speciesBase = species
+
+							for i in range(6*(int(line[p])-1),6*int(line[p])):
+								if ts[i][1].startswith(speciesBase):
+									species = ts[i][1]
+									found = True
+									break
+							if not found:
+								print(ts)
+								sys.stderr.write('Problem with '+filename+'\n')
+								sys.stderr.write('(Pokemon not in ts) (4)\n')
+								sys.stderr.write(str([ts[11*(int(line[p])-1)][0],species])+'\n')
+								return False
+					active[int(line[p])-1]=ts.index([ts[11*(int(line[p])-1)][0],species])
 
 	for i in range(len(matchups)):
 		if matchups[i][2] == False:
@@ -734,10 +733,10 @@ def LogReader(filename,tier,movesets,ratings):
 
 	writeme = {}
 	
-	writeme['p1'] = {'trainer':ts[0][0].encode('ascii','replace')}
+	writeme['p1'] = {'trainer':ts[0][0]}
 	
 	teamtags = teams['p1team'][len(teams['p1team'])-1]
-	for x in teamtags.keys():
+	for x in list(teamtags.keys()):
 		writeme['p1'][x] = teamtags[x]
 	writeme['p1']['team']=[]
 	i=0
@@ -750,16 +749,17 @@ def LogReader(filename,tier,movesets,ratings):
 			sys.stderr.write(str(ts)+"\n")
 			return False
 
-	writeme['p2'] = {'trainer':ts[len(ts)-1][0].encode('ascii','replace')}
+	# writeme['p2'] = {'trainer':ts[len(ts)-1][0].encode('ascii','replace')}
+	writeme['p2'] = {'trainer':ts[len(ts)-1][0]}
 	teamtags = teams['p2team'][len(teams['p2team'])-1]
-	for x in teamtags.keys():
+	for x in list(teamtags.keys()):
 		writeme['p2'][x] = teamtags[x]
 	writeme['p2']['team']=[]
 	for j in range(i,len(ts)):
 		writeme['p2']['team'].append({'species':ts[j][1],'KOs':KOs[j],'turnsOut':turnsOut[j]})
 	writeme['matchups']=matchups
 	writeme['turns']=int(log['turns'])
-	if 'endType' in log.keys():
+	if 'endType' in list(log.keys()):
 		writeme['endType']=log['endType']
 	
 	#outfile.write(lzma.compress(json.dumps(writeme))+'\n')
@@ -790,14 +790,15 @@ def main(argv):
 	#elif tier[:8]=='seasonal':
 	#	tier='seasonal'
 
+
+	ratings_file = "ratings.json"
 	ratings = None
-	if len(argv) > 4:
-		if argv[3] == '-redoRatings':
-			try:
-				ratings = json.loads(open(argv[4]).readline())
-			except:
-				ratings = {}
-			print ratings
+	if len(argv) > 3:
+		try:
+			ratings = json.loads(open(argv[3]).readline())
+			ratings_file = argv[3]
+		except:
+			ratings = {}
 
 	outname = "Raw/"+tier#+".txt"
 	d = os.path.dirname(outname)
@@ -806,9 +807,16 @@ def main(argv):
 	writeme=[]
 	movesets={}
 	count=0
-	for filename in os.listdir(argv[1]):
+	subfolders = [f.path for f in os.scandir(argv[1]) if f.is_dir()]
+	subfiles = [f.path for subfolder in subfolders for f in os.scandir(subfolder)]
+	# subfiles = [f.path for f in os.scandir(argv[1])]
+
+	# for filename in os.listdir(argv[1]):
+	for filename in subfiles:
 		#print filename
-		x = LogReader(argv[1]+'/'+filename,tier,movesets,ratings)
+		# print(filename)
+		# x = LogReader(argv[1]+'/'+filename,tier,movesets,ratings)
+		x = LogReader(filename,tier,movesets,ratings)
 		if x:
 			writeme.append(x)
 			count += 1
@@ -820,7 +828,7 @@ def main(argv):
 				outfile.close()
 
 				#write to moveset file
-				for species in movesets.keys():
+				for species in list(movesets.keys()):
 					outname = "Raw/moveset/"+tier+"/"+species#+".txt"
 					d = os.path.dirname(outname)
 					if not os.path.exists(d):
@@ -833,26 +841,28 @@ def main(argv):
 				movesets={}
 	if writeme:
 		outname = "Raw/"+tier#+".txt"
-		outfile=gzip.open(outname,'ab')
+		outfile=gzip.open(outname,'at')
+		json.dumps(writeme)
 		outfile.write(json.dumps(writeme)+'\n')
 		outfile.close()
 
 		#write to moveset file
-		for species in movesets.keys():
+		for species in list(movesets.keys()):
 			outname = "Raw/moveset/"+tier+"/"+species#+".txt"
 			d = os.path.dirname(outname)
 			if not os.path.exists(d):
 				os.makedirs(d)
-			msfile=gzip.open(outname,'ab')		
+			msfile=gzip.open(outname,'at')		
 			msfile.write(json.dumps(movesets[species]))
 			msfile.close()
 
-	if ratings != None:
-		for player in ratings.keys():
-			Glicko.newRatingPeriod(ratings[player])
-		ratingfile=open(argv[4],'w+')
-		ratingfile.write(json.dumps(ratings))
-		ratingfile.close()
+	# if ratings != None:
+		# for player in list(ratings.keys()):
+		# 	Glicko.newRatingPeriod(ratings[player])
+	ratingfile=open(ratings_file,'w+')
+	ratingfile.write(json.dumps(ratings))
+	ratingfile.close()
+	Glicko.write(ratings, "ratings.txt")
 
 if __name__ == "__main__":
     main(sys.argv)

@@ -3,15 +3,15 @@
 import string
 import math
 import js2py
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import ujson as json
 
 def keyify(s):
 	sout = ''
 	for c in s:
-		if c in string.uppercase:
+		if c.isupper():
 			sout = sout + c.lower()
-		elif c in string.lowercase + '1234567890':
+		elif c.islower() or c.isnumeric():
 			sout = sout + c
 	return sout
 
@@ -61,16 +61,19 @@ def readTable(filename):
 
 
 def getFormats():
-	js=urllib2.urlopen("https://raw.githubusercontent.com/Zarel/Pokemon-Showdown/master/config/formats.js").read()
-	print 'Updating tiers'
+	js=urllib.request.urlopen("https://raw.githubusercontent.com/Zarel/Pokemon-Showdown/master/config/formats.js").read()
+	print('Updating tiers')
 	return json.loads(js2py.eval_js('exports={},'+js+'JSON.stringify(exports.Formats)'))
 
 def getBattleFormatsData():
-	js=urllib2.urlopen("https://raw.githubusercontent.com/Zarel/Pokemon-Showdown/master/data/formats-data.js").read()
-	print 'Updating tiers'
+	js=urllib.request.urlopen("https://raw.githubusercontent.com/Zarel/Pokemon-Showdown/master/data/formats-data.js").read()
+	print('Updating tiers')
 	return json.loads(js2py.eval_js('exports={},'+js+'JSON.stringify(exports.BattleFormatsData)'))
 
 aliases={
+	'Dudunsparce': ['Dudunsparce-Three-Segment', 'Dudunsparcethreesegment'],
+	'Maushold': ['Maushold-Four', 'Mausholdfour'],
+	'Tatsugiri': ['Tatsugiridroopy', 'Tatsugiri-Droopy', 'Tatsugiristretchy', 'Tatsugiri-Stretchy'],
 	'NidoranF': ['Nidoran-F'],
 	'NidoranM': ['Nidoran-M'],
 	'Wormadam-Sandy': ['Wormadam-S', 'Wormadamsandy'],
@@ -140,7 +143,7 @@ aliases={
 	'Bisharp' : ['Bsharp'],
 	'Missingno.' : ['MissingNo.', 'MissingNo', 'Missingno'],
 	'Vivillon' : ["Vivillon-Archipelago", "Vivillon-Continental", "Vivillon-Elegant", "Vivillon-Garden", "Vivillon-Highplains", "Vivillon-Icysnow", "Vivillon-Jungle", "Vivillon-Marine", "Vivillon-Modern", "Vivillon-Monsoon", "Vivillon-Ocean", "Vivillon-Polar", "Vivillon-River", "Vivillon-Sandstorm", "Vivillon-Savanna", "Vivillon-Sun", "Vivillon-Tundra", "Vivillon-Fancy", "Vivillon-Pokeball", "Vivillonarchipelago", "Vivilloncontinental", "Vivillonelegant", "Vivillongarden", "Vivillonhighplains", "Vivillonicysnow", "Vivillonjungle", "Vivillonmarine", "Vivillonmodern", "Vivillonmonsoon", "Vivillonocean", "Vivillonpolar", "Vivillonriver", "Vivillonsandstorm", "Vivillonsavanna", "Vivillonsun", "Vivillontundra", "Vivillonfancy", "Vivillonpokeball", "Vivillon-Icy Snow", "Vivillon-High Plains"],
-	'Flabebe' : ["Flabebeblue", "Flabebeorange", "Flabebewhite", "Flabebeyellow", "Flabebe-Blue", "Flabebe-Orange", "Flabebe-White", "Flabebe-Yellow", u'Flabe\u0301be\u0301', u'Flabe\u0301be\u0301-Blue', u'Flabe\u0301be\u0301-Orange', u'Flabe\u0301be\u0301-White', u'Flabe\u0301be\u0301-Yellow'],
+	'Flabebe' : ["Flabebeblue", "Flabebeorange", "Flabebewhite", "Flabebeyellow", "Flabebe-Blue", "Flabebe-Orange", "Flabebe-White", "Flabebe-Yellow", 'Flabe\u0301be\u0301', 'Flabe\u0301be\u0301-Blue', 'Flabe\u0301be\u0301-Orange', 'Flabe\u0301be\u0301-White', 'Flabe\u0301be\u0301-Yellow'],
 	'Floette' : ["Floetteblue", "Floetteorange", "Floettewhite", "Floetteyellow", "Floette-Blue", "Floette-Orange", "Floette-White", "Floette-Yellow"],
 	'Florges' : ["Florgesblue", "Florgesorange", "Florgeswhite", "Florgesyellow", "Florges-Blue", "Florges-Orange", "Florges-White", "Florges-Yellow"],
 	'Ditto': ['Dtto'],
@@ -174,9 +177,9 @@ aliases={
 	'Pokestarblackdoor': ['Pokestarblackdoorprop', 'Pokestar Black Door-Prop'],
 	'Pokestarwhitedoor': ['Pokestarwhitedoorprop', 'Pokestar White Door-Prop'],
 	'Pokestarblackbelt': ['Pokestarblackbeltprop', 'Pokestar Black Belt-Prop'],
-	'Farfetch\'d': [u'Farfetch\u2019d'],
-	'Sirfetch\'d': [u'Sirfetch\u2019d'],
-	'Farfetch\'d-Galar': [u'Farfetch\u2019d-Galar']
+	'Farfetch\'d': ['Farfetch\u2019d'],
+	'Sirfetch\'d': ['Sirfetch\u2019d'],
+	'Farfetch\'d-Galar': ['Farfetch\u2019d-Galar']
 }
 
 nonSinglesFormats = [

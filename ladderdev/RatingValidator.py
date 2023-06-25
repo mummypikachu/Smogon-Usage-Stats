@@ -40,7 +40,7 @@ for line in raw:
 
 	for battle in battles:
 
-		if 'rating' not in battle['p1'].keys() or 'rating' not in battle['p1'].keys() or 'outcome' not in battle['p1'].keys():
+		if 'rating' not in list(battle['p1'].keys()) or 'rating' not in list(battle['p1'].keys()) or 'outcome' not in list(battle['p1'].keys()):
 			continue
 		if battle['p1']['rating']['rd'] <= maxRD and battle['p2']['rating']['rd'] <= maxRD:
 			if battle['p1']['rating']['r'] > battle['p2']['rating']['r']:
@@ -49,7 +49,7 @@ for line in raw:
 			else:
 				probWin = victoryChance(battle['p2']['rating']['r'],battle['p2']['rating']['rd'],battle['p1']['rating']['r'],battle['p1']['rating']['rd'])
 				betterPlayer='p2'				
-			for i in xrange(len(bins)):
+			for i in range(len(bins)):
 				if probWin < bins[i][0]+binSize/2:
 					bins[i][1]=bins[i][1]+probWin
 					if battle[betterPlayer]['outcome'] == 'win':
@@ -57,5 +57,5 @@ for line in raw:
 					break
 
 for bin in bins:
-	print bin[0],bin[1],bin[2]
+	print(bin[0],bin[1],bin[2])
 	

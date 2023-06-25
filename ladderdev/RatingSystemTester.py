@@ -5,7 +5,7 @@ import sys
 import gzip
 import json
 import math
-import cPickle as pickle
+import pickle as pickle
 
 def incorrectSyntax():
 	sys.stderr.write('Incorrect syntax.\n')
@@ -65,7 +65,7 @@ while idx<len(sys.argv):
 		if battle[0] != date:
 			i+=1
 			if (i == daysPerRatingPeriod):
-				for player in ratings.keys():
+				for player in list(ratings.keys()):
 					bprpfile.write(str(ratings[player]['battlesInRatingPeriod'])+'\n')
 					ratings[player]['battlesInRatingPeriod']=0
 					for system in systems:
@@ -74,7 +74,7 @@ while idx<len(sys.argv):
 			date=battle[0]
 		
 		for p in [1,3]:
-			if battle[p] not in ratings.keys():
+			if battle[p] not in list(ratings.keys()):
 				newScore={'nBattles':0.0,'nWins':0.0,'battlesInRatingPeriod':0.0}
 				for system in systems:
 					newScore[system]=ratingSystems[system].newPlayer()
@@ -87,7 +87,7 @@ while idx<len(sys.argv):
 
 		for system in systems:
 			ratings[battle[1]][system],ratings[battle[3]][system],E=ratingSystems[system].update(ratings[battle[1]][system],ratings[battle[3]][system],battle[5])
-			if system in winfiles.keys():
+			if system in list(winfiles.keys()):
 				winfile=winfiles[system]
 				if int(battle[5]) == 1:
 					score=1.0
@@ -99,14 +99,14 @@ while idx<len(sys.argv):
 
 	idx+=1
 try:
-	for winfile in winfiles.values():
+	for winfile in list(winfiles.values()):
 		winfile.close()
 
 	bprpfile.close()
 except:
 	sys.err.write("I dunno what's going on.\n")
 
-for player in ratings.keys():
+for player in list(ratings.keys()):
 	ratings[player]['battlesInRatingPeriod']=0
 	for system in systems:
 		ratings[player][system]=ratingSystems[system].newRatingPeriod(ratings[player][system])
@@ -114,10 +114,10 @@ for player in ratings.keys():
 printme='Username,nBattles,nWins'
 for system in systems:
 	printme+=','+ratingSystems[system].headers()
-print printme
+print(printme)
 
-for player in ratings.keys():
+for player in list(ratings.keys()):
 	printme=player+','+str(ratings[player]['nBattles'])+','+str(ratings[player]['nWins'])
 	for system in systems:
 		printme+=','+ratingSystems[system].printRating(ratings[player][system])
-	print printme
+	print(printme)

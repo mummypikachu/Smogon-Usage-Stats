@@ -5,7 +5,7 @@ import sys
 import gzip
 import json
 import math
-import cPickle as pickle
+import pickle as pickle
 
 systems = sys.argv[1].split(',')
 try:
@@ -53,19 +53,19 @@ while idx<len(sys.argv):
 			winner=0
 			ladderError = False
 			for player in ['p1','p2']:
-				if 'rating' in battle[player].keys():
-					if metrics.issubset(battle[player]['rating'].keys()):
+				if 'rating' in list(battle[player].keys()):
+					if metrics.issubset(list(battle[player]['rating'].keys())):
 						if battle[player]['rating']['rd'] != 0.0 and battle[player]['rating']['rprd'] != 0.0:
 							ratings[player]={}
 							for metric in metrics:
 								ratings[player][metric]=battle[player]['rating'][metric]
-				if player not in ratings.keys(): #in the event of a ladder error
+				if player not in list(ratings.keys()): #in the event of a ladder error
 					ladderError = True
 					ratings[player]={}
 					ratings[player]['r']=ratings[player]['rpr']=1500.0
 					ratings[player]['rd']=ratings[player]['rprd']=350.0
 				scores[player]={}
-				if battle[player]['trainer'] in ladder.keys():
+				if battle[player]['trainer'] in list(ladder.keys()):
 					for system in systems:
 						scores[player][system]=ladder[battle[player]['trainer']]['scores'][system]
 				else:
@@ -75,7 +75,7 @@ while idx<len(sys.argv):
 					trajectories[battle[player]['trainer']]=[]
 					wltCounts[battle[player]['trainer']]=[0,0,0]
 
-			if 'outcome' in battle['p1'].keys():
+			if 'outcome' in list(battle['p1'].keys()):
 				if battle['p1']['outcome'] == 'win':
 					winner=1
 					wltCounts[battle['p1']['trainer']][0]+=1
@@ -96,7 +96,7 @@ while idx<len(sys.argv):
 					ladder[battle[player]['trainer']]['rating']=ratings[player]
 				ladder[battle[player]['trainer']]['scores']=scores[player]
 				trajectories[battle[player]['trainer']].append({'player':{'rating':ratings[player],'scores':scores[player]},'opponent':{'rating':ratings[opp[player]],'scores':scores[opp[player]]}})
-				if 'outcome' in battle[player].keys():
+				if 'outcome' in list(battle[player].keys()):
 					trajectories[battle[player]['trainer']][-1]['outcome']=battle[player]['outcome']
 				else:
 					trajectories[battle[player]['trainer']][-1]['outcome']='tie'
@@ -111,8 +111,8 @@ x=[]
 for system in systems:
 	printme+=','+system
 	x.append(system)
-print printme
-for player in ladder.keys():
+print(printme)
+for player in list(ladder.keys()):
 	r=ladder[player]['rating']['r']
 	rd=ladder[player]['rating']['rd']
 	rpr=ladder[player]['rating']['rpr']
@@ -122,4 +122,4 @@ for player in ladder.keys():
 	printme=player+','+str(len(trajectories[player]))+','+str(wltCounts[player][0])+','+str(r)+','+str(rd)+','+str(rpr)+','+str(rprd)+','+str(acre)+','+str(gxe)
 	for system in x: #probably could just do system in systems, but this is safer
 		printme+=','+str(ladderRatingSystem[system].getSortable(ladder[player]['scores'][system]))
-	print printme
+	print(printme)

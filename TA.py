@@ -105,7 +105,7 @@ megas=[	['abomasnow','abomasite','snowwarning'],
 	
 def analyzePoke(poke):
 	species=keyify(poke['species'])
-	if species not in baseStats.keys():
+	if species not in list(baseStats.keys()):
 		sys.stderr.write(species+" is not listed in baseStats.json\n")
 		sys.stderr.write("You may want to fix that.\n")
 		return None	
